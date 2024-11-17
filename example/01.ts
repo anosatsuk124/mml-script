@@ -1,14 +1,34 @@
-import { m, play } from '../lib';
+import { m, play, Player, Scale } from '../lib';
 
-const mml = m('o5 c d e f g a b').stack(
+const mml = m('o5 c d e f g a b')
+  .stack(
+    //
+    m('o4 c d e f g')
+  )
+  .track(1);
+play(mml);
+
+const mml2 = m('o4 c d e f g a b')
+  .queue(
+    //
+    m('o5 c d e f g a b')
+  )
+  .track(2);
+
+const cmajor = Scale.degrees('C major');
+
+const mml3 = m('o4 s1 s2 s3 s4 s5 s6 s7')
   //
-  m('c d e f g')
-);
-console.log(play(mml));
+  .withScale(cmajor)
+  .track(3);
+play(mml2, mml3);
 
-const mml2 = m('o4 c d e f g a b').queue(
-  //
-  m('o5 c d e f g a b')
-);
+const mml4 = m('o4 s{1 2 3 4 5 6 7}').withScale(cmajor).track(4);
+play(mml4);
 
-console.log(play(mml2));
+const dminor = Scale.degrees('D minor');
+
+const mml5 = m('o4 s{1# 2- 3 4 5 6 < 7}').withScale(dminor).track(5);
+play(mml5);
+
+console.log(Player.toFixed());
