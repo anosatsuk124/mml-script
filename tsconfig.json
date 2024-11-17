@@ -24,5 +24,6 @@
     "declaration": true,
     "declarationDir": "./dist"
   },
-  "include": ["./lib"]
+  "include": ["./lib"],
+  "exclude": ["./lib/**/*.test.ts"]
 }

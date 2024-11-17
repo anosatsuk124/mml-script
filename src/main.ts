@@ -1,7 +1,7 @@
-import "./style.css";
+import './style.css';
 // import { setupCounter } from '../lib/main'
 
-document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
+document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div>
     <h1>Vite + TypeScript</h1>
     <div class="card">
