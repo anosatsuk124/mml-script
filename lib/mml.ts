@@ -1,4 +1,5 @@
 import { Note } from 'tonal';
+import { make_wav, pico_compile_to_midi } from 'picosakura';
 
 export interface Fixable {
   toFixed(): string;
@@ -203,5 +204,27 @@ export class MMLPlayer implements Fixable {
     result += ')';
 
     return `${result}`;
+  }
+
+  play_audio(sound_font: Uint8Array): Uint8Array {
+    const fixed = this.toFixed();
+    const wav = make_wav(fixed, sound_font);
+
+    if (wav.result) {
+      return wav.get_bin();
+    } else {
+      return new Uint8Array();
+    }
+  }
+
+  compile_to_midi(): Uint8Array {
+    const fixed = this.toFixed();
+    const midi = pico_compile_to_midi(fixed);
+
+    if (midi.result) {
+      return midi.get_bin();
+    } else {
+      return new Uint8Array();
+    }
   }
 }

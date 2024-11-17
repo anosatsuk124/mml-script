@@ -6,7 +6,7 @@ export const stack = <T>(...items: T[]): T[] => items;
 
 export const Player = new MMLPlayer();
 
-export const play = <T extends Fixable>(...mmls: T[]) => {
+export const addPlayer = <T extends Fixable>(...mmls: T[]) => {
   for (const mml of mmls) {
     Player.push(mml);
   }
