@@ -1,8 +1,8 @@
-import { Fixable, MML, MMLPlayer } from './mml';
+import { Fixable, MML, MMLPlayer, ScaledMML } from './mml';
 
 export const m = MML.from;
 
-export const stack = <T>(...items: T[]): T[] => items;
+export const s = (mml: string) => new ScaledMML(mml);
 
 export const Player = new MMLPlayer();
 

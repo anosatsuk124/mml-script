@@ -1,4 +1,4 @@
-import { Note } from 'tonal';
+import { Note, Scale } from 'tonal';
 import { make_wav, pico_compile_to_midi } from 'picosakura';
 
 export interface Fixable {
@@ -8,15 +8,14 @@ export interface Fixable {
 export interface IMML extends Fixable {
   track(num: number): IMML;
   channel(num: number): IMML;
-  withScale(scale: (degree: number) => string): IMML;
 }
 
 export interface IQueue<T> extends IMML {
-  queue(i: T): IQueue<T>;
+  queue(...items: T[]): IQueue<T>;
 }
 
 export interface IStack<T> extends IMML {
-  stack(i: T): IStack<T>;
+  stack(...items: T[]): IStack<T>;
 }
 
 export class MML implements IMML, IStack<MML>, IQueue<MML> {
@@ -59,59 +58,87 @@ export class MML implements IMML, IStack<MML>, IQueue<MML> {
     return `${code}`;
   }
 
-  track(num: number): MML {
+  track(num: number): IMML {
     return new MML(this.raw_code, num, this.channel_number);
   }
 
-  channel(num: number): MML {
+  channel(num: number): IMML {
     return new MML(this.raw_code, this.track_number, num);
   }
 
-  // 's1 s2 s3'
-  withScale(scale: (degree: number) => string): MML {
-    const regex1 = /s(\d+)/g;
-    let codeToReplace = this.raw_code;
-
-    codeToReplace = codeToReplace.replace(regex1, (match) => {
-      const degree_str = match.replace(regex1, '$1');
-      const degree = parseInt(degree_str);
-      const note = scale(degree);
-      const pc = Note.get(note).pc.replace('b', '-').toLowerCase();
-      return `{${pc}}`;
-    });
-
-    const regex2 = /s\s*{(.*)+}/g;
-
-    codeToReplace = codeToReplace.replace(regex2, (substr: string) => {
-      return substr
-        .replace(/(\d+)/g, (substr) => {
-          const degree = parseInt(substr);
-          const note = scale(degree);
-          const pc = Note.get(note).pc.replace('b', '-').toLowerCase();
-          return `{${pc}}`;
-        })
-        .replace(regex2, '$1');
-    });
-
-    return new MML(codeToReplace, this.track_number, this.channel_number);
-  }
-
-  stack(mml: MML): IStack<MML> {
+  stack(...mml: MML[]): IStack<IMML> {
     const stack = new Stack<MML>();
 
     stack.push(this);
-    stack.push(mml);
+    for (const m of mml) {
+      stack.push(m);
+    }
 
     return stack;
   }
 
-  queue(mml: MML): IQueue<MML> {
+  queue(...mml: MML[]): IQueue<IMML> {
     const queue = new Queue<MML>();
 
     queue.push(this);
-    queue.push(mml);
+    for (const m of mml) {
+      queue.push(m);
+    }
 
     return queue;
+  }
+}
+
+export class ScaledMML extends MML {
+  // 's1 s2 s3'
+  scale(scale_name: string | Scale.Scale): MML {
+    const regex_note = /(?<![\w,])([-\+])*(\d+)([-\+#]*)/g;
+    let codeToReplace = this.raw_code;
+
+    const scale_obj =
+      typeof scale_name === 'string' ? Scale.get(scale_name) : scale_name;
+    const scale_length = scale_obj.notes.length;
+    const scale_names = scale_obj.name;
+
+    const scale2degree = Scale.degrees(scale_names);
+
+    codeToReplace = codeToReplace.replace(regex_note, (match) => {
+      const matches = match.matchAll(regex_note);
+
+      let height = 0;
+      for (const m of matches) {
+        const height_prefix = m[1];
+        if (height_prefix === '-') {
+          height -= 1;
+        }
+        if (height_prefix === '+') {
+          height += 1;
+        }
+      }
+
+      let semitone = 0;
+      for (const m of matches) {
+        const semitone_suffix = m[3];
+        if (semitone_suffix === '-') {
+          semitone -= 1;
+        }
+        if (semitone_suffix === '+' || semitone_suffix === '#') {
+          semitone += 1;
+        }
+      }
+
+      const degree_str = match.replace(regex_note, '$2');
+      const degree = parseInt(degree_str);
+      const note = scale2degree(degree + height * scale_length);
+      const midi = Note.get(note).midi;
+
+      if (midi === null) {
+        throw new Error(`Invalid note: ${note}`);
+      }
+      return `n${midi + semitone}`;
+    });
+
+    return new MML(codeToReplace, this.track_number, this.channel_number);
   }
 }
 
@@ -122,8 +149,13 @@ export class Queue<T extends IMML> implements IQueue<T> {
 
   readonly _queue: Array<T>;
 
-  queue(i: T): IQueue<T> {
-    return new Queue([...this._queue, i]);
+  queue(...items: T[]): IQueue<T> {
+    const queue = new Queue([...this._queue]);
+    for (const item of items) {
+      queue.push(item);
+    }
+
+    return queue;
   }
 
   push(item: T): void {
@@ -141,10 +173,6 @@ export class Queue<T extends IMML> implements IQueue<T> {
   channel(num: number): IQueue<T> {
     return new Queue(this._queue.map((item) => item.channel(num)));
   }
-
-  withScale(scale: (degree: number) => string): IQueue<T> {
-    return new Queue(this._queue.map((item) => item.withScale(scale)));
-  }
 }
 
 export class Stack<T extends IMML> implements IStack<T> {
@@ -154,8 +182,14 @@ export class Stack<T extends IMML> implements IStack<T> {
 
   readonly _stack: Array<T>;
 
-  stack(i: T): IStack<T> {
-    return new Stack([...this._stack, i]);
+  stack(...items: T[]): IStack<T> {
+    const stack = new Stack([...this._stack]);
+
+    for (const item of items) {
+      stack.push(item);
+    }
+
+    return stack;
   }
 
   push(item: T): void {
@@ -172,10 +206,6 @@ export class Stack<T extends IMML> implements IStack<T> {
 
   channel(num: number): IStack<T> {
     return new Stack(this._stack.map((item) => item.channel(num)));
-  }
-
-  withScale(scale: (degree: number) => string): IStack<T> {
-    return new Stack(this._stack.map((item) => item.withScale(scale)));
   }
 }
 

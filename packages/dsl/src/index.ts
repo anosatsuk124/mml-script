@@ -1,3 +1,4 @@
+import './init_pico';
 import './mml';
 import './utils';
 import 'tonal';
