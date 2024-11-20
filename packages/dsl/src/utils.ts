@@ -1,8 +1,8 @@
 import { Fixable, MML, MMLPlayer, ScaledMML } from './mml';
 
-export const m = MML.from;
+export const m = (mml: string | MML) => new MML(mml);
 
-export const s = (mml: string) => new ScaledMML(mml);
+export const s = (mml: string | MML) => new ScaledMML(mml);
 
 export const Player = new MMLPlayer();
 
